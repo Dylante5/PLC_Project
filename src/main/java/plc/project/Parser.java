@@ -310,7 +310,7 @@ public final class Parser {
      */
     public Ast.Expr parseEqualityExpression() throws ParseException {
         Ast.Expr expr = parseAdditiveExpression();
-        while (match("==", "!=")) {
+        while (match("==", "!=", "<", "<=", ">", ">=")) {
             String operator = tokens.get(-1).getLiteral();
             Ast.Expr right = parseAdditiveExpression();
             expr = new Ast.Expr.Binary(operator, expr, right);
@@ -353,7 +353,23 @@ public final class Parser {
                 throw new ParseException("Expected identifier after '.'.", tokens.get(0).getIndex());
             }
             String name = tokens.get(-1).getLiteral();
-            expr = new Ast.Expr.Access(Optional.of(expr), name);
+
+            // Check if this is a method call or just field access
+            if (match("(")) {
+                // Parse arguments for the function/method call
+                List<Ast.Expr> arguments = new ArrayList<>();
+                if (!match(")")) {
+                    do {
+                        arguments.add(parseExpression());
+                    } while (match(","));
+                    if (!match(")")) {
+                        throw new ParseException("Expected ')' after arguments.", tokens.get(0).getIndex());
+                    }
+                }
+                expr = new Ast.Expr.Function(Optional.of(expr), name, arguments);  // Method call with a receiver
+            } else {
+                expr = new Ast.Expr.Access(Optional.of(expr), name);  // Just field access
+            }
         }
         return expr;
     }
@@ -384,20 +400,34 @@ public final class Parser {
             return new Ast.Expr.Literal(literal);
         } else if (match(Token.Type.IDENTIFIER)) {
             String name = tokens.get(-1).getLiteral();
-            return new Ast.Expr.Access(Optional.empty(), name);  // Variable or field access
+
+            // Check if this is a function call
+            if (match("(")) {
+                List<Ast.Expr> arguments = new ArrayList<>();
+                if (!match(")")) {  // If it's not an empty argument list
+                    do {
+                        arguments.add(parseExpression());  // Parse each argument
+                    } while (match(","));  // Separate arguments by commas
+                    if (!match(")")) {
+                        throw new ParseException("Expected ')' after arguments.", tokens.get(0).getIndex());
+                    }
+                }
+                return new Ast.Expr.Function(Optional.empty(), name, arguments);  // Global function call
+            }
+
+            // If it's not a function call, return it as an identifier access
+            return new Ast.Expr.Access(Optional.empty(), name);
         } else if (match("(")) {
+            // Handle grouped expressions (e.g., "(1 + 2)")
             Ast.Expr expr = parseExpression();
             if (!match(")")) {
                 throw new ParseException("Expected ')' after expression.", tokens.get(0).getIndex());
             }
             return new Ast.Expr.Group(expr);
-        } else if (match("TRUE")) {
-            return new Ast.Expr.Literal(true);
-        } else if (match("FALSE")) {
-            return new Ast.Expr.Literal(false);
-        } else {
-            throw new ParseException("Expected a primary expression.", tokens.get(0).getIndex());
         }
+
+        // If none of the conditions match, throw an error
+        throw new ParseException("Expected a primary expression.", tokens.get(0).getIndex());
     }
 
     /**
