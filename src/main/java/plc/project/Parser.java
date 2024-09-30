@@ -297,11 +297,18 @@ public final class Parser {
      */
     public Ast.Expr parseLogicalExpression() throws ParseException {
         Ast.Expr expr = parseEqualityExpression();
-        while (match("AND", "OR")) {
-            String operator = tokens.get(-1).getLiteral();
+        while (match("AND", "OR") || (tokens.has(0) && (tokens.get(0).getLiteral().equals("AND") || tokens.get(0).getLiteral().equals("OR")))) {
+            String operator;
+            if (!match("AND", "OR")) {
+                operator = tokens.get(0).getLiteral(); // Assign operator from IDENTIFIER token
+                tokens.advance(); // Advance past the IDENTIFIER token
+            } else {
+                operator = tokens.get(-1).getLiteral();  // Assign operator from matched token
+            }
             Ast.Expr right = parseEqualityExpression();
             expr = new Ast.Expr.Binary(operator, expr, right);
         }
+
         return expr;
     }
 
@@ -310,11 +317,21 @@ public final class Parser {
      */
     public Ast.Expr parseEqualityExpression() throws ParseException {
         Ast.Expr expr = parseAdditiveExpression();
-        while (match("==", "!=", "<", "<=", ">", ">=")) {
-            String operator = tokens.get(-1).getLiteral();
+        while (match("==", "!=", "<", "<=", ">", ">=") || (tokens.has(0) &&
+                (tokens.get(0).getLiteral().equals("==") || tokens.get(0).getLiteral().equals("!=") ||
+                        tokens.get(0).getLiteral().equals("<") || tokens.get(0).getLiteral().equals("<=") ||
+                        tokens.get(0).getLiteral().equals(">") || tokens.get(0).getLiteral().equals(">=")))) {
+            String operator;
+            if (!match("==", "!=", "<", "<=", ">", ">=")) {
+                operator = tokens.get(0).getLiteral(); // Assign operator from IDENTIFIER token
+                tokens.advance(); // Advance past the IDENTIFIER token
+            } else {
+                operator = tokens.get(-1).getLiteral();  // Assign operator from matched token
+            }
             Ast.Expr right = parseAdditiveExpression();
             expr = new Ast.Expr.Binary(operator, expr, right);
         }
+
         return expr;
     }
 
@@ -323,25 +340,43 @@ public final class Parser {
      */
     public Ast.Expr parseAdditiveExpression() throws ParseException {
         Ast.Expr expr = parseMultiplicativeExpression();
-        while (match("+", "-")) {
-            String operator = tokens.get(-1).getLiteral();
+        while (match("+", "-") || (tokens.has(0) &&
+                (tokens.get(0).getLiteral().equals("+") || tokens.get(0).getLiteral().equals("-")))) {
+            String operator;
+            if (!match("+", "-")) {
+                operator = tokens.get(0).getLiteral(); // Assign operator from IDENTIFIER token
+                tokens.advance(); // Advance past the IDENTIFIER token
+            } else {
+                operator = tokens.get(-1).getLiteral();  // Assign operator from matched token
+            }
             Ast.Expr right = parseMultiplicativeExpression();
             expr = new Ast.Expr.Binary(operator, expr, right);
         }
+
         return expr;
     }
+
     /**
      * Parses the {@code multiplicative-expression} rule.
      */
     public Ast.Expr parseMultiplicativeExpression() throws ParseException {
         Ast.Expr expr = parseSecondaryExpression();
-        while (match("*", "/")) {
-            String operator = tokens.get(-1).getLiteral();
+        while (match("*", "/") || (tokens.has(0) &&
+                (tokens.get(0).getLiteral().equals("*") || tokens.get(0).getLiteral().equals("/")))) {
+            String operator;
+            if (!match("*", "/")) {
+                operator = tokens.get(0).getLiteral(); // Assign operator from IDENTIFIER token
+                tokens.advance(); // Advance past the IDENTIFIER token
+            } else {
+                operator = tokens.get(-1).getLiteral();  // Assign operator from matched token
+            }
             Ast.Expr right = parseSecondaryExpression();
             expr = new Ast.Expr.Binary(operator, expr, right);
         }
+
         return expr;
     }
+
 
     /**
      * Parses the {@code secondary-expression} rule.
@@ -436,7 +471,7 @@ public final class Parser {
      * instead it is either a {@link Token.Type}, which matches if the token's
      * type is the same, or a {@link String}, which matches if the token's
      * literal is the same.
-     *
+     * <p>
      * In other words, {@code Token(IDENTIFIER, "literal")} is matched by both
      * {@code peek(Token.Type.IDENTIFIER)} and {@code peek("literal")}.
      */
@@ -466,6 +501,7 @@ public final class Parser {
     private boolean match(Object... patterns) {
         boolean peek = peek(patterns);
         if (peek) {
+            System.out.println("Matching token: " + tokens.get(0).getLiteral());  // Debugging output
             for (int i = 0; i < patterns.length; i++) {
                 tokens.advance();
             }
